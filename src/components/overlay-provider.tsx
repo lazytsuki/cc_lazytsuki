@@ -1,5 +1,6 @@
 'use client'
 
+import { usePathname } from 'next/navigation'
 import {
   createContext,
   useCallback,
@@ -22,6 +23,7 @@ type OverlayContextValue = {
 const OverlayContext = createContext<OverlayContextValue | null>(null)
 
 export function OverlayProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname()
   const [activeId, setActiveId] = useState<string | null>(null)
   const activeIdRef = useRef<string | null>(null)
   const triggerRef = useRef<HTMLElement | null>(null)
@@ -47,6 +49,10 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
     if (trigger !== undefined) triggerRef.current = trigger
     setActiveId(id)
   }, [])
+
+  useEffect(() => {
+    close()
+  }, [pathname, close])
 
   const value = useMemo<OverlayContextValue>(() => ({
     activeId,
