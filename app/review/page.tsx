@@ -46,7 +46,7 @@ export default async function ReviewPage() {
   ])
 
   return (
-    <main className="app-shell" id="main-content" tabIndex={-1} data-retniw-user-id={userId}>
+    <main key={userId} className="app-shell" id="main-content" tabIndex={-1} data-retniw-user-id={userId}>
       <AppHeader account={{ email: user.email, nickname: user.nickname }} userId={userId} />
       <ThoughtLayout>
         <ThoughtNavigation

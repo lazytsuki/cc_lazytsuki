@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: '记录和继续想法。',
     start_url: '/',
     display: 'standalone',
-    background_color: '#08090b',
-    theme_color: '#08090b',
+    background_color: '#101312',
+    theme_color: '#101312',
     icons: [
       {
         src: '/icon-192.png',

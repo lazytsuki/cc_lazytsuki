@@ -2,7 +2,7 @@
 
 :root {
   color: #f4f4f2;
-  background: #08090b;
+  background: #101312;
   font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -12,6 +12,12 @@
   --text-secondary: rgb(245 245 243 / 72%);
   --text-muted: rgb(245 245 243 / 58%);
   --text-subtle: rgb(245 245 243 / 55%);
+  --surface-page: #101312;
+  --surface-input: #171c1a;
+  --surface-hover: #202824;
+  --line: rgb(210 226 217 / 12%);
+  --reading-width: 720px;
+  --font-editorial: "Iowan Old Style", "Songti SC", "Noto Serif CJK SC", Georgia, serif;
   --workspace-motion-duration: 280ms;
   --workspace-motion-easing: cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -24,7 +30,7 @@ html {
   width: 100%;
   min-height: 100%;
   overflow-x: clip;
-  background: #08090b;
+  background: var(--surface-page);
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
@@ -35,10 +41,8 @@ body {
   margin: 0;
   overflow-x: clip;
   background:
-    radial-gradient(circle at 12% 7%, rgb(72 112 112 / 20%), transparent 31rem),
-    radial-gradient(circle at 86% 76%, rgb(78 65 104 / 14%), transparent 34rem),
-    radial-gradient(circle at 58% 115%, rgb(82 102 120 / 12%), transparent 38rem),
-    #08090b;
+    radial-gradient(ellipse at 52% 0%, rgb(103 135 116 / 7%), transparent 55rem),
+    var(--surface-page);
   background-attachment: fixed;
 }
 
@@ -168,7 +172,7 @@ a {
     position: sticky;
     z-index: 50;
     top: 0;
-    background: linear-gradient(180deg, rgb(8 9 11 / 96%) 0%, rgb(8 9 11 / 88%) 76%, transparent 100%);
+    background: linear-gradient(180deg, rgb(16 19 18 / 96%) 0%, rgb(16 19 18 / 88%) 76%, transparent 100%);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
   }
@@ -501,17 +505,18 @@ a {
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
-  border-radius: 26px;
-  background: linear-gradient(145deg, rgb(255 255 255 / 9%), transparent 42%), rgb(17 21 24 / 72%);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%), inset 0 -1px 0 rgb(0 0 0 / 18%), 0 28px 80px rgb(0 0 0 / 28%);
-  backdrop-filter: blur(30px) saturate(135%);
-  -webkit-backdrop-filter: blur(30px) saturate(135%);
-  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  border-radius: 16px;
+  border-color: var(--line);
+  background: var(--surface-input);
+  box-shadow: 0 6px 30px rgb(0 0 0 / 8%);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
 }
 
 .capture-surface:focus-within {
   border-color: rgb(191 216 208 / 34%);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 10%), 0 0 0 1px rgb(191 216 208 / 5%), 0 34px 100px rgb(0 0 0 / 35%);
+  box-shadow: 0 0 0 3px rgb(191 216 208 / 4%);
 }
 
 .capture-surface textarea {
@@ -526,8 +531,8 @@ a {
   outline: none;
   background: transparent;
   color: #f2f2ef;
-  font-size: clamp(18px, 1.55vw, 22px);
-  line-height: 1.62;
+  font-size: clamp(17px, 1.4vw, 19px);
+  line-height: 1.85;
 }
 
 textarea::placeholder,
@@ -555,7 +560,7 @@ input::placeholder {
   display: none;
 }
 
-@media (pointer: coarse) {
+@media (pointer: coarse), (max-width: 560px) {
   .capture-shortcut-hint {
     display: none;
   }
@@ -567,16 +572,19 @@ input::placeholder {
 
 .capture-actions button {
   display: grid;
-  width: 44px;
-  height: 44px;
-  flex: 0 0 44px;
+  min-width: 68px;
+  height: 40px;
+  flex: 0 0 auto;
   place-items: center;
-  border: 1px solid rgb(255 255 255 / 14%);
-  border-radius: 50%;
-  background: linear-gradient(145deg, #fbfbf8, #d9dfdc);
+  padding: 0 18px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--accent);
   color: #111315;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  box-shadow: inset 0 1px 0 #fff, 0 8px 24px rgb(0 0 0 / 24%);
+  box-shadow: none;
   transition: opacity 140ms ease, transform 140ms ease, box-shadow 140ms ease;
 }
 
@@ -678,7 +686,7 @@ a.fragment-card:hover {
 .thought-layout {
   --thought-layout-top: clamp(38px, 6vh, 72px);
   --thought-sidebar-top: 32px;
-  --thought-main-max-width: 820px;
+  --thought-main-max-width: var(--reading-width);
   --workspace-sidebar-width: clamp(230px, 20vw, 280px);
   --workspace-sidebar-gap: clamp(48px, 7vw, 104px);
   --workspace-main-leading: 0fr;
@@ -735,7 +743,26 @@ a.fragment-card:hover {
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  margin-bottom: 18px;
+  margin-bottom: 28px;
+}
+
+.workspace-intro {
+  margin: 12px 0 0;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.workspace-heading-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.workspace-heading-copy {
+  flex: 1 1 240px;
+  min-width: 0;
 }
 
 .workspace-kicker {
@@ -781,10 +808,17 @@ a.fragment-card:hover {
   max-width: 620px;
   margin: 0;
   color: rgb(245 245 243 / 86%);
-  font-size: clamp(20px, 2.35vw, 28px);
-  font-weight: 510;
+  font-family: var(--font-editorial);
+  font-size: clamp(25px, 2.7vw, 34px);
+  font-weight: 500;
   letter-spacing: -0.025em;
-  line-height: 1.35;
+  line-height: 1.5;
+}
+
+.workspace-heading .workspace-kicker {
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-muted);
 }
 
 .thought-menu {
@@ -1373,7 +1407,7 @@ a.fragment-card:hover {
 
 .thought-entry {
   min-width: 0;
-  padding: 22px 4px;
+  padding: 28px 4px;
   border-bottom: 1px solid rgb(255 255 255 / 8%);
 }
 
@@ -1398,8 +1432,8 @@ a.fragment-card:hover {
 .entry-content {
   margin: 0;
   color: rgb(248 248 245 / 90%);
-  font-size: clamp(17px, 1.5vw, 21px);
-  line-height: 1.68;
+  font-size: clamp(17px, 1.4vw, 19px);
+  line-height: 1.85;
   overflow-wrap: anywhere;
 }
 
@@ -1708,6 +1742,16 @@ a.fragment-card:hover {
 
 .thought-composer textarea {
   min-height: 190px;
+  max-height: 560px;
+  overflow-y: auto;
+}
+
+.capture-status {
+  margin: 0;
+  padding: 0 22px 16px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .thought-composer__label {
@@ -1898,14 +1942,14 @@ a.fragment-card:hover {
 
 .thought-list {
   display: grid;
-  gap: 8px;
+  gap: 3px;
 }
 
 .thought-list-item {
   position: relative;
   min-width: 0;
   overflow: hidden;
-  border-radius: 14px;
+  border-radius: 10px;
 }
 
 .thought-list-item__surface {
@@ -1915,8 +1959,8 @@ a.fragment-card:hover {
   grid-template-columns: minmax(0, 1fr) 32px;
   align-items: stretch;
   border: 1px solid transparent;
-  border-radius: 14px;
-  background: #0b0d0f;
+  border-radius: 10px;
+  background: var(--surface-page);
   touch-action: pan-y;
   transition: transform 160ms ease;
 }
@@ -1924,9 +1968,9 @@ a.fragment-card:hover {
 .thought-list-item:hover .thought-list-item__surface,
 .thought-list-item__surface--active,
 .thought-list-item__surface--pending {
-  border-color: rgb(255 255 255 / 12%);
-  background: linear-gradient(135deg, rgb(255 255 255 / 7%), transparent 48%), rgb(255 255 255 / 4%);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 4%);
+  border-color: var(--line);
+  background: var(--surface-hover);
+  box-shadow: none;
 }
 
 .thought-list-item__swipe-actions {
@@ -2807,7 +2851,120 @@ a.fragment-card:hover {
   line-height: 1.6;
 }
 
+.welcome-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  align-items: center;
+  gap: clamp(48px, 8vw, 130px);
+  width: min(1120px, 100%);
+  min-height: 100dvh;
+  margin-inline: auto;
+  padding: 60px 40px;
+}
+
+.welcome-intro .login-brand {
+  margin-bottom: 58px;
+}
+
+.welcome-intro h1 {
+  margin: 0;
+  font-family: var(--font-editorial);
+  font-size: clamp(36px, 4vw, 52px);
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: -.035em;
+}
+
+.welcome-description {
+  margin: 24px 0 0;
+  color: var(--text-secondary);
+  font-size: 16px;
+  line-height: 1.9;
+}
+
+.welcome-principles {
+  margin-top: 38px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+
+.welcome-principles p {
+  display: flex;
+  gap: 22px;
+  margin: 12px 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.welcome-principles span {
+  flex: 0 0 auto;
+  color: var(--accent);
+}
+
+.welcome-account {
+  width: 100%;
+  margin: 0;
+  padding: 32px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface-input);
+  box-shadow: none;
+}
+
+.welcome-account h2 {
+  margin: 0;
+  font-size: 23px;
+  font-weight: 500;
+}
+
+.welcome-account .auth-mode-switch {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 30px;
+  padding: 0 0 14px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+}
+
+.welcome-account .auth-mode-switch a {
+  padding: 0;
+  border-radius: 0;
+  font-size: 13px;
+}
+
+.welcome-account .auth-mode-switch a[aria-current="page"] {
+  background: transparent;
+  color: var(--accent);
+}
+
 @media (max-width: 900px) {
+  .welcome-shell {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 34px;
+    max-width: 500px;
+    padding: 36px 24px 48px;
+  }
+
+  .welcome-intro .login-brand {
+    margin-bottom: 26px;
+  }
+
+  .welcome-intro h1 {
+    font-size: 34px;
+  }
+
+  .welcome-description {
+    margin-top: 16px;
+    font-size: 14px;
+  }
+
+  .welcome-principles,
+  .welcome-line-break {
+    display: none;
+  }
   .app-shell {
     max-width: 732px;
     margin: 0 auto;
@@ -3020,7 +3177,7 @@ a.fragment-card:hover {
 
   .capture-surface,
   .fragment-original {
-    border-radius: 19px;
+    border-radius: 14px;
   }
 
   .capture-surface textarea {
@@ -3042,9 +3199,9 @@ a.fragment-card:hover {
   .thought-composer:focus-within {
     overflow: hidden;
     border-color: rgb(255 255 255 / 16%);
-    border-radius: 19px;
-    background: rgb(255 255 255 / 3%);
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 6%);
+    border-radius: 14px;
+    background: var(--surface-input);
+    box-shadow: none;
   }
 
   .thought-composer:focus-within {
@@ -3053,10 +3210,10 @@ a.fragment-card:hover {
   }
 
   .thought-composer--initial textarea {
-    min-height: clamp(280px, 50dvh, 520px);
+    min-height: clamp(200px, 32dvh, 320px);
     padding: 20px 18px 10px;
-    font-size: 19px;
-    line-height: 1.7;
+    font-size: 18px;
+    line-height: 1.85;
   }
 
   .thought-composer--initial .capture-actions {
@@ -3067,12 +3224,17 @@ a.fragment-card:hover {
 
   .workspace-heading {
     display: flex;
+    flex-wrap: wrap;
     gap: 14px;
     margin-bottom: 20px;
   }
 
+  .workspace-heading-actions {
+    margin-left: auto;
+  }
+
   .workspace-heading h1 {
-    font-size: 21px;
+    font-size: 25px;
   }
 
   .thinking-assist {
@@ -3139,6 +3301,11 @@ a.fragment-card:hover {
   .panel {
     margin-top: 9vh;
     padding: 28px;
+  }
+
+  .welcome-account {
+    margin: 0;
+    padding: 24px;
   }
 }
 

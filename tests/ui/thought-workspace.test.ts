@@ -182,7 +182,7 @@ describe('thought workspace acceptance boundaries', () => {
     expect(assist).not.toContain("action: 'organize'")
     expect(menu).toContain('整理内容')
     expect(provider).not.toContain('第一句以“可以继续写：”开头')
-    expect(capturePage).toContain('key="new-thought"')
+    expect(capturePage).toContain('key={`new-thought:${userId}`}')
   })
 
   it('keeps mobile writing in the document flow with explicit save semantics', async () => {
@@ -191,21 +191,21 @@ describe('thought workspace acceptance boundaries', () => {
     const css = await readFile('src/index.css', 'utf8')
 
     expect(workspace).toContain('autoFocus={!started}')
-    expect(composer).toContain("window.matchMedia('(pointer: coarse)').matches")
+    expect(composer).toContain('Boolean(event.metaKey || event.ctrlKey)')
     expect(composer).toContain("thought-composer--initial")
     expect(composer).toContain("data-mode={hasEntries ? 'continuation' : 'initial'}")
     expect(composer).toContain('usePointerGlow<HTMLDivElement>()')
     expect(composer).toContain('data-pointer-glow="capture"')
     expect(composer).toContain('>继续写</label>')
     expect(composer).toContain('补充一个新的点，或继续刚才的思路')
-    expect(composer).toContain('换行继续写，点箭头保存')
+    expect(composer).toContain('写好后，点保存')
     expect(css).toMatch(/@media \(pointer: coarse\)[\s\S]*\.capture-shortcut-hint \{[\s\S]*display: none;[\s\S]*\.capture-mobile-hint \{[\s\S]*display: inline;/)
     expect(css.match(/\.capture-mobile-hint \{\s*display: inline;/g)).toHaveLength(1)
     expect(css).not.toMatch(/\.thought-composer\[data-mode="continuation"\] \{[\s\S]*?(?:border-color|background|box-shadow):/)
     expect(css).not.toContain('.thought-composer[data-mode="continuation"]:focus-within')
     expect(css).toMatch(/@media \(max-width: 560px\)[\s\S]*\.thought-composer,[\s\S]*border-color: rgb\(255 255 255 \/ 16%\)/)
     expect(css).not.toMatch(/\.thought-composer--initial(?:,|:focus-within)[^{]*\{[\s\S]*?(?:border-color|background|box-shadow):/)
-    expect(css).toMatch(/\.thought-composer--initial textarea \{[\s\S]*min-height: clamp\(280px, 50dvh, 520px\)/)
+    expect(css).toMatch(/\.thought-composer--initial textarea \{[\s\S]*min-height: clamp\(200px, 32dvh, 320px\)/)
     expect(css).not.toMatch(/\.thought-composer \{[\s\S]*position: fixed/)
   })
 

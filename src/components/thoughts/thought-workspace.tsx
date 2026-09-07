@@ -8,8 +8,9 @@ import { ThoughtComposer } from './thought-composer'
 import { SyncStatus } from './sync-status'
 import { useAiAction } from '@/src/hooks/use-ai-action'
 import { useCaptureOutbox } from '@/src/hooks/use-capture-outbox'
-import { userBoundFetch } from '@/src/lib/auth/user-bound-fetch'
-import type { ThoughtOutboxItem } from '@/src/lib/capture/capture-store'
+import { authContextChangedEvent, currentPageUserId, userBoundFetch } from '@/src/lib/auth/user-bound-fetch'
+import { isThoughtOutboxDiscarded, listThoughtOutboxItems, type ThoughtOutboxItem } from '@/src/lib/capture/capture-store'
+import { draftRecoveryKey, findRecoverableItem, listLocalDrafts, loadDraftForRecovery } from '@/src/lib/capture/local-drafts'
 import type { Entry } from '@/src/server/repositories/entry-repository'
 import type { Thought } from '@/src/server/repositories/thought-repository'
 import { EntryActions } from './entry-actions'
@@ -23,6 +24,7 @@ import { requestHistoryAfterCheckpoint, ThoughtNavigation } from './thought-navi
 import { ThoughtMenu } from './thought-menu'
 import { CheckpointDialog } from './checkpoint-dialog'
 import { ThoughtLayout } from './thought-layout'
+import { LocalDrafts } from './local-drafts'
 import type { ThoughtCheckpoint } from '@/src/server/repositories/checkpoint-repository'
 import type { ThoughtCollection } from '@/src/server/repositories/collection-repository'
 import { useOverlayController } from '@/src/components/overlay-provider'
@@ -60,6 +62,10 @@ export function ThoughtWorkspace({
   const thoughtIdRef = useRef(thoughtId)
   const [ids, setIds] = useState(nextIds)
   const [content, setContent] = useState('')
+  const inputRevision = useRef(0)
+  const draftWriteRef = useRef<Promise<void>>(Promise.resolve())
+  const accountChangedRef = useRef(false)
+  const workspaceMountedRef = useRef(true)
   const [localEntries, setLocalEntries] = useState<Entry[]>([])
   const [started, setStarted] = useState(Boolean(initialThought))
   const [serverReady, setServerReady] = useState(Boolean(initialThought))
@@ -108,6 +114,15 @@ export function ThoughtWorkspace({
     [],
   )
   const outbox = useCaptureOutbox(userId, handleEntrySynced)
+  useEffect(() => {
+    workspaceMountedRef.current = true
+    const stopForAccountChange = () => { accountChangedRef.current = true }
+    window.addEventListener(authContextChangedEvent, stopForAccountChange)
+    return () => {
+      workspaceMountedRef.current = false
+      window.removeEventListener(authContextChangedEvent, stopForAccountChange)
+    }
+  }, [])
   const restoredDraft = useRef(false)
   const waitingForFirstSync = useRef<string | null>(null)
   const firstSyncObserved = useRef(false)
@@ -145,12 +160,21 @@ export function ThoughtWorkspace({
         // Fall through to normal draft recovery when browser storage is unavailable.
       }
     }
-    const localItems = initialThought
-      ? outbox.items.filter((item) => item.thoughtId === initialThought.id)
-      : outbox.items.filter((item) => item.createsThought)
-    const restored = localItems.at(-1)
+    let requestedEntryId: string | null = null
+    if (initialThought) {
+      try {
+        const key = draftRecoveryKey(userId, initialThought.id)
+        requestedEntryId = sessionStorage.getItem(key)
+        sessionStorage.removeItem(key)
+      } catch {
+        // The latest draft for this thought remains recoverable without sessionStorage.
+      }
+    }
+    const restored = findRecoverableItem(outbox.items, userId, initialThought?.id ?? null, requestedEntryId)
     if (!restored) return
     queueMicrotask(() => {
+      // IndexedDB may finish loading after the user has already started writing.
+      if (inputRevision.current > 0 || accountChangedRef.current || !workspaceMountedRef.current) return
       thoughtIdRef.current = restored.thoughtId
       setThoughtId(restored.thoughtId)
       setIds(
@@ -165,7 +189,7 @@ export function ThoughtWorkspace({
         firstSyncObserved.current = true
       }
     })
-  }, [initialThought, outbox.items, outbox.ready])
+  }, [initialThought, outbox.items, outbox.ready, userId])
 
   useEffect(() => {
     if (!waitingForFirstSync.current) return
@@ -240,6 +264,9 @@ export function ThoughtWorkspace({
 
   const directWritePending = importPending || checkpointPending
   const aiWritePending = ai.state.status === 'streaming'
+  const otherDrafts = useMemo(() => listLocalDrafts(outbox.items, userId, ids.entryId)
+    .filter((item) => !initialThought || item.thoughtId === initialThought.id),
+  [initialThought, outbox.items, userId, ids.entryId])
   const canUseAi = serverReady && !entryWritePending && !directWritePending && !aiWritePending && entries.length > 0 && hasNewUserContext(entries)
   const displayThoughts = useMemo(() => {
     if (!serverReady || !started || entries.length === 0 || initialThought?.archivedAt) return initialThoughts
@@ -273,12 +300,13 @@ export function ThoughtWorkspace({
       sourceLabel: null,
       createsThought: !started,
       state: 'draft',
-      createdAt: now,
+      createdAt: activeOutbox.find((item) => item.entryId === ids.entryId)?.createdAt ?? now,
       updatedAt: now,
     }
   }
 
   function handleChange(nextContent: string) {
+    inputRevision.current += 1
     setContent(nextContent)
     if (thoughtDiscarded) {
       setQueueError('这个想法已在其他页面删除，请复制需要保留的内容。')
@@ -288,7 +316,43 @@ export function ThoughtWorkspace({
     const persist = nextContent
       ? outbox.saveDraft(draftItem(nextContent))
       : outbox.remove(ids.entryId)
+    draftWriteRef.current = persist
     void persist.catch(() => setQueueError('没有保存到本机，请先保留这段内容。'))
+  }
+
+  async function handleRestoreDraft(item: ThoughtOutboxItem) {
+    if (outbox.authContextChanged || directWritePending || aiWritePending || queueingEntryRef.current) return
+    const revision = ++inputRevision.current
+    try {
+      const restored = await loadDraftForRecovery({
+        pendingWrite: draftWriteRef.current,
+        readItems: listThoughtOutboxItems,
+        stillCurrent: () => workspaceMountedRef.current && inputRevision.current === revision && !accountChangedRef.current &&
+          !queueingEntryRef.current && !importPendingRef.current && !checkpointPendingRef.current && currentPageUserId() === userId,
+        userId, thoughtId: item.thoughtId, entryId: item.entryId,
+      })
+      if (!restored || isThoughtOutboxDiscarded(userId, restored.thoughtId)) return
+      if (!restored.createsThought && restored.thoughtId !== initialThought?.id) {
+        sessionStorage.setItem(draftRecoveryKey(userId, restored.thoughtId), restored.entryId)
+        router.push(`/thoughts/${restored.thoughtId}`)
+        return
+      }
+      inputRevision.current += 1
+      thoughtIdRef.current = restored.thoughtId
+      setThoughtId(restored.thoughtId)
+      setIds({ entryId: restored.entryId, clientRequestId: restored.clientRequestId })
+      setContent(restored.content)
+      setStarted(!restored.createsThought)
+      setServerReady(!restored.createsThought)
+      setQueueError('')
+      window.requestAnimationFrame(() => {
+        textareaRef.current?.focus({ preventScroll: true })
+        textareaRef.current?.setSelectionRange(restored.content.length, restored.content.length)
+        textareaRef.current?.scrollIntoView({ block: 'center' })
+      })
+    } catch {
+      setQueueError('草稿没有打开，当前输入已保留，请重试。')
+    }
   }
 
   function handleSubmit() {
@@ -299,8 +363,10 @@ export function ThoughtWorkspace({
       aiWritePending ||
       thoughtDiscarded ||
       outbox.authContextChanged ||
+      accountChangedRef.current ||
       queueingEntryRef.current
     ) return
+    inputRevision.current += 1
     queueingEntryRef.current = true
     setQueueingEntry(true)
     setQueueError('')
@@ -348,6 +414,7 @@ export function ThoughtWorkspace({
 
   async function handleImport(submission: ImportSubmission, requestIds: ImportRequestIds) {
     if (importPendingRef.current) throw new Error('正在导入，请稍候。')
+    inputRevision.current += 1
     importPendingRef.current = true
     setImportPending(true)
     const createsThought = submission.target === 'new'
@@ -393,6 +460,7 @@ export function ThoughtWorkspace({
     requestIds: { entryId: string; clientRequestId: string },
   ) {
     if (checkpointPendingRef.current) throw new Error('CHECKPOINT_PENDING')
+    inputRevision.current += 1
     checkpointPendingRef.current = true
     setCheckpointPending(true)
     try {
@@ -455,9 +523,26 @@ export function ThoughtWorkspace({
           {started ? (
             <h1 className="workspace-kicker">当前想法</h1>
           ) : (
-            <h1>写下你正在想的。</h1>
+            <div className="workspace-heading-copy">
+              <h1>写下你正在想的。</h1>
+              <p className="workspace-intro">先留下一句，以后可以接着写。</p>
+            </div>
           )}
-          {serverReady ? (
+          <div className="workspace-heading-actions">
+            {!serverReady && !started && (
+              <button
+                className="workspace-import-action"
+                type="button"
+                disabled={importPending}
+                onClick={(event) => overlay.open('import', event.currentTarget)}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 3v12M7.5 10.5 12 15l4.5-4.5" />
+                  <path d="M5 20h14" />
+                </svg>
+                导入文字
+              </button>
+            )}
             <ThoughtMenu
               userId={userId}
               thoughtId={thoughtId}
@@ -465,22 +550,10 @@ export function ThoughtWorkspace({
               organizeRunning={ai.state.status === 'streaming' && ai.state.action === 'organize'}
               importDisabled={directWritePending || aiWritePending || entryWritePending}
               onImport={() => overlay.open('import')}
-              onOrganize={() => void ai.run(thoughtId, 'organize')}
+              onOrganize={() => { inputRevision.current += 1; void ai.run(thoughtId, 'organize') }}
+              exportSnapshot={{ entries, checkpoints, localItems: outbox.items, currentDraft: draftItem(content), authContextChanged: outbox.authContextChanged, cloudThoughtReady: serverReady, localWritePending: queueingEntry }}
             />
-          ) : !started ? (
-            <button
-              className="workspace-import-action"
-              type="button"
-              disabled={importPending}
-              onClick={(event) => overlay.open('import', event.currentTarget)}
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 3v12M7.5 10.5 12 15l4.5-4.5" />
-                <path d="M5 20h14" />
-              </svg>
-              导入文字
-            </button>
-          ) : null}
+          </div>
         </header>
         {timeline.length > 0 && (
           <div className="thought-entries">
@@ -529,8 +602,9 @@ export function ThoughtWorkspace({
         <ThoughtComposer
           autoFocus={!started}
           content={content}
-          disabled={directWritePending || aiWritePending || queueingEntry}
-          saveDisabled={thoughtDiscarded || outbox.authContextChanged}
+          disabled={queueingEntry}
+          saveDisabled={thoughtDiscarded || outbox.authContextChanged || directWritePending || aiWritePending}
+          saveDisabledReason={aiWritePending ? '可以继续写，AI结束后再保存。' : directWritePending ? '可以继续写，当前操作完成后再保存。' : undefined}
           hasEntries={entries.length > 0}
           onChange={handleChange}
           onSubmit={handleSubmit}
@@ -547,6 +621,11 @@ export function ThoughtWorkspace({
           onRecoverLegacy={outbox.recoverLegacy}
           onRetry={() => void outbox.retry()}
         />
+        {(!started || initialThought) && <LocalDrafts
+          drafts={otherDrafts}
+          disabled={outbox.authContextChanged || directWritePending || aiWritePending || queueingEntry}
+          onRestore={(item) => void handleRestoreDraft(item)}
+        />}
         {serverReady && entries.length > 0 && (
           <button
             className="checkpoint-action"
@@ -563,7 +642,7 @@ export function ThoughtWorkspace({
             disabled={!canUseAi}
             waitingForInput={!canUseAi}
             running={ai.state.status === 'streaming' && ai.state.action === 'advance'}
-            onContinue={() => void ai.run(thoughtId, 'advance')}
+            onContinue={() => { inputRevision.current += 1; void ai.run(thoughtId, 'advance') }}
           />
         )}
         {overlay.isOpen('import') && (

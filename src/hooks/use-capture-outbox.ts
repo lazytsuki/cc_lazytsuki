@@ -17,7 +17,7 @@ import {
   putThoughtOutboxItem,
   type ThoughtOutboxItem,
 } from '@/src/lib/capture/capture-store'
-import { userBoundFetch } from '@/src/lib/auth/user-bound-fetch'
+import { authContextChangedEvent, userBoundFetch } from '@/src/lib/auth/user-bound-fetch'
 import type { Entry } from '@/src/server/repositories/entry-repository'
 
 export async function sendThoughtOutboxItem(item: ThoughtOutboxItem) {
@@ -127,6 +127,12 @@ export function useCaptureOutbox(userId: string, onSynced?: (item: ThoughtOutbox
   const flushRequestedRef = useRef(false)
   const onSyncedRef = useRef(onSynced)
   const discardedThoughtIdsRef = useRef(new Set(listDiscardedThoughtIds(userId)))
+
+  useEffect(() => {
+    const stopForAccountChange = () => setAuthContextChanged(true)
+    window.addEventListener(authContextChangedEvent, stopForAccountChange)
+    return () => window.removeEventListener(authContextChangedEvent, stopForAccountChange)
+  }, [])
 
   const itemIsDiscarded = useCallback((thoughtId: string) => {
     return discardedThoughtIdsRef.current.has(thoughtId) || isThoughtOutboxDiscarded(userId, thoughtId)

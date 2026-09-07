@@ -75,7 +75,7 @@ describe('cross-thought review workspace', () => {
     expect(workspace).toContain('#entry-${connection.target.entryId}')
     expect(workspace).toContain("onDecide('confirmed')")
     expect(workspace).toContain("onDecide('rejected')")
-    expect(workspace).toContain(": '保留'}")
+    expect(workspace).toContain(": '保留联系'}")
     expect(workspace).toContain('>忽略<')
     expect(workspace).toContain('已保留')
     expect(workspace).toContain("useVisibleProductEvent('review_opened')")
@@ -85,6 +85,11 @@ describe('cross-thought review workspace', () => {
     expect(workspace).toContain('aria-label="打开更早写的原文"')
     expect(workspace).toContain('data-connection-id={connection.id}')
     expect(workspace).toContain('pendingHeadingRef.current.focus()')
+    expect(workspace.indexOf('{connection.source.excerpt}')).toBeLessThan(workspace.indexOf('{connection.rationale}'))
+    expect(workspace.indexOf('{connection.target.excerpt}')).toBeLessThan(workspace.indexOf('{connection.rationale}'))
+    expect(workspace).toContain('可能的联系 · AI提出')
+    expect(workspace).toContain('保留的联系会留在这里，两段原文仍各自保存。')
+    expect(workspace).toContain('读完整想法')
   })
 
   it('uses a restrained responsive layout without a forced glass treatment', async () => {

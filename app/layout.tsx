@@ -8,7 +8,7 @@ import '@/src/index.css'
 
 export const metadata: Metadata = {
   title: 'retniw',
-  description: '记录和继续想法。',
+  description: '想法不必完整，先留下一句。随手记下、慢慢接着写，找回原文和想法之间的联系。',
   applicationName: 'retniw',
   appleWebApp: {
     capable: true,
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#08090b',
+  themeColor: '#101312',
   colorScheme: 'dark',
 }
 

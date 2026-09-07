@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, type RefObject } from 'react'
+import { useId, useLayoutEffect, useRef, type RefObject } from 'react'
 import { usePointerGlow } from '@/src/hooks/use-pointer-glow'
 
 type ThoughtComposerProps = {
@@ -8,6 +8,7 @@ type ThoughtComposerProps = {
   content: string
   disabled?: boolean
   saveDisabled?: boolean
+  saveDisabledReason?: string
   hasEntries: boolean
   onChange: (content: string) => void
   onSubmit: () => void
@@ -23,20 +24,30 @@ export function thoughtComposerCopy(hasEntries: boolean) {
 export function shouldSubmitThought(event: {
   key: string
   shiftKey: boolean
+  metaKey?: boolean
+  ctrlKey?: boolean
   isComposing: boolean
   keyCode: number
-}, coarsePointer = false) {
+}) {
   return event.key === 'Enter' &&
+    Boolean(event.metaKey || event.ctrlKey) &&
     !event.shiftKey &&
     !event.isComposing &&
-    event.keyCode !== 229 &&
-    !coarsePointer
+    event.keyCode !== 229
 }
 
-export function ThoughtComposer({ autoFocus = false, content, disabled = false, saveDisabled = false, hasEntries, onChange, onSubmit, textareaRef }: ThoughtComposerProps) {
+export function ThoughtComposer({ autoFocus = false, content, disabled = false, saveDisabled = false, saveDisabledReason, hasEntries, onChange, onSubmit, textareaRef }: ThoughtComposerProps) {
   const copy = thoughtComposerCopy(hasEntries)
   const textareaId = useId()
+  const ownTextareaRef = useRef<HTMLTextAreaElement>(null)
+  const inputRef = textareaRef ?? ownTextareaRef
   const pointerGlow = usePointerGlow<HTMLDivElement>()
+  useLayoutEffect(() => {
+    const input = inputRef.current
+    if (!input) return
+    input.style.height = 'auto'
+    input.style.height = `${Math.min(input.scrollHeight, 560)}px`
+  }, [content, inputRef])
   return (
     <div
       className={`thought-composer capture-surface${hasEntries ? '' : ' thought-composer--initial'}`}
@@ -49,11 +60,12 @@ export function ThoughtComposer({ autoFocus = false, content, disabled = false, 
       {hasEntries && <label className="thought-composer__label" htmlFor={textareaId}>继续写</label>}
       <textarea
         id={textareaId}
-        ref={textareaRef}
+        ref={inputRef}
         autoFocus={autoFocus}
         disabled={disabled}
         maxLength={10_000}
         aria-label={copy.ariaLabel}
+        aria-describedby={saveDisabledReason ? `${textareaId}-status` : undefined}
         placeholder={copy.placeholder}
         value={content}
         onChange={(event) => onChange(event.target.value)}
@@ -62,22 +74,23 @@ export function ThoughtComposer({ autoFocus = false, content, disabled = false, 
           if (!shouldSubmitThought({
             key: event.key,
             shiftKey: event.shiftKey,
+            metaKey: event.metaKey,
+            ctrlKey: event.ctrlKey,
             isComposing: event.nativeEvent.isComposing,
             keyCode: event.keyCode,
-          }, window.matchMedia('(pointer: coarse)').matches)) return
+          })) return
           event.preventDefault()
           onSubmit()
         }}
       />
       <div className="capture-actions">
-        <span className="capture-shortcut-hint">Enter 保存 · Shift+Enter 换行</span>
-        <span className="capture-mobile-hint">换行继续写，点箭头保存</span>
+        <span className="capture-shortcut-hint">Enter 换行，⌘ / Ctrl + Enter 保存</span>
+        <span className="capture-mobile-hint">写好后，点保存</span>
         <button type="button" aria-label="保存" disabled={disabled || saveDisabled || !content.trim()} onClick={onSubmit}>
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="m7 12 5-5 5 5M12 7v10" />
-          </svg>
+          保存
         </button>
       </div>
+      {saveDisabledReason && <p className="capture-status" id={`${textareaId}-status`} role="status">{saveDisabledReason}</p>}
     </div>
   )
 }

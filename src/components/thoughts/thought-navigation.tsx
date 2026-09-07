@@ -7,6 +7,7 @@ import type { MouseEvent } from 'react'
 import type { ThoughtSummary } from './thought-workspace'
 import type { ThoughtCollection } from '@/src/server/repositories/collection-repository'
 import { ThoughtListItem } from './thought-list-item'
+import { ThoughtSearch } from './thought-search'
 import type { ThoughtAction } from './thought-action-menu'
 import { useOverlayController } from '@/src/components/overlay-provider'
 import { userBoundFetch } from '@/src/lib/auth/user-bound-fetch'
@@ -654,35 +655,41 @@ export function ThoughtNavigation({
         </div>
 
     return <div className="thought-navigation__content">
-      <div className="thought-navigation__scroll">
-        {menuScope === 'sidebar' && <div className="thought-navigation__heading">
-          {view.kind !== 'recent' && <button type="button" aria-label="返回以前的想法" onClick={showRecent}>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 6-6 6 6 6" /></svg>
-          </button>}
-          <h2>{viewTitle(view)}</h2>
-        </div>}
-        {list}
-        {loadError && <p className="thought-list-error" role="status">{loadError}</p>}
-        {nextCursor && <button className="load-more-thoughts" type="button" disabled={loading} onClick={() => void loadMore()}>{loading ? '正在加载' : '加载更多'}</button>}
-        {view.kind === 'recent' && collections.length > 0 && <div className="thought-navigation__sections">
-          <section>
-            <h3>合集</h3>
-            {collections.map((collection) => (
-              <div className="collection-link" key={collection.id}>
-                <button type="button" onClick={() => void loadView({ kind: 'collection', id: collection.id, name: collection.name })}>{collection.name}</button>
-                <button
-                  className="collection-delete-action"
-                  type="button"
-                  aria-label={`删除合集 ${collection.name}`}
-                  onClick={(event) => requestCollectionDelete(collection, event.currentTarget)}
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" /></svg>
-                </button>
-              </div>
-            ))}
-          </section>
-        </div>}
-      </div>
+      {menuScope === 'sidebar' && <div className="thought-navigation__heading">
+        {view.kind !== 'recent' && <button type="button" aria-label="返回以前的想法" onClick={showRecent}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 6-6 6 6 6" /></svg>
+        </button>}
+        <h2>{viewTitle(view)}</h2>
+      </div>}
+      <ThoughtSearch
+        key={`${menuScope}:${userId}:${view.kind === 'collection' ? view.id : view.kind}`}
+        userId={userId}
+        onChoose={() => { if (menuScope === 'history') closeHistory() }}
+      >
+        <div className="thought-navigation__scroll">
+          {list}
+          {loadError && <p className="thought-list-error" role="status">{loadError}</p>}
+          {nextCursor && <button className="load-more-thoughts" type="button" disabled={loading} onClick={() => void loadMore()}>{loading ? '正在加载' : '加载更多'}</button>}
+          {view.kind === 'recent' && collections.length > 0 && <div className="thought-navigation__sections">
+            <section>
+              <h3>合集</h3>
+              {collections.map((collection) => (
+                <div className="collection-link" key={collection.id}>
+                  <button type="button" onClick={() => void loadView({ kind: 'collection', id: collection.id, name: collection.name })}>{collection.name}</button>
+                  <button
+                    className="collection-delete-action"
+                    type="button"
+                    aria-label={`删除合集 ${collection.name}`}
+                    onClick={(event) => requestCollectionDelete(collection, event.currentTarget)}
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" /></svg>
+                  </button>
+                </div>
+              ))}
+            </section>
+          </div>}
+        </div>
+      </ThoughtSearch>
       {secondaryNavigation(menuScope)}
     </div>
   }

@@ -13,23 +13,23 @@ describe('thought composer keyboard behavior', () => {
     })
   })
 
-  it('submits with Enter for a precise pointer', () => {
+  it.each(['metaKey', 'ctrlKey'])('saves with %s + Enter', (modifier) => {
     expect(
-      shouldSubmitThought({ key: 'Enter', shiftKey: false, isComposing: false, keyCode: 13 }),
+      shouldSubmitThought({ key: 'Enter', shiftKey: false, isComposing: false, keyCode: 13, [modifier]: true }),
     ).toBe(true)
   })
 
-  it('keeps Return as a newline for coarse-pointer mobile input', () => {
+  it('keeps Return as a newline on every device', () => {
     expect(
-      shouldSubmitThought({ key: 'Enter', shiftKey: false, isComposing: false, keyCode: 13 }, true),
+      shouldSubmitThought({ key: 'Enter', shiftKey: false, isComposing: false, keyCode: 13 }),
     ).toBe(false)
   })
 
   it.each([
-    { key: 'Enter', shiftKey: true, isComposing: false, keyCode: 13 },
-    { key: 'Enter', shiftKey: false, isComposing: true, keyCode: 13 },
-    { key: 'Enter', shiftKey: false, isComposing: false, keyCode: 229 },
-    { key: 'a', shiftKey: false, isComposing: false, keyCode: 65 },
+    { key: 'Enter', ctrlKey: true, shiftKey: true, isComposing: false, keyCode: 13 },
+    { key: 'Enter', metaKey: true, shiftKey: false, isComposing: true, keyCode: 13 },
+    { key: 'Enter', ctrlKey: true, shiftKey: false, isComposing: false, keyCode: 229 },
+    { key: 'a', metaKey: true, shiftKey: false, isComposing: false, keyCode: 65 },
   ])('does not submit for a newline or IME composition', (event) => {
     expect(shouldSubmitThought(event)).toBe(false)
   })

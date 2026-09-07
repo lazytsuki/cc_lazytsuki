@@ -7,10 +7,11 @@
 | 位置 | 职责 | 当前行为 |
 | --- | --- | --- |
 | [`ThoughtNavigation`](src/components/thoughts/thought-navigation.tsx#ThoughtNavigation) | 工作区导航 | 最近内容为历史根；合集、归档、回看为次级入口；不提供已删除视图 |
+| `ThoughtSearch`、`GET /api/thoughts/search` | 全文找回 | 本人user/import原文连续文字检索，包含归档与后续段落；匹配摘要链接到精确entry锚点 |
 | `AppHeader`、`app/auth/created`、`app/account/actions.ts` | 账号入口 | 创建成功先进入轻量过渡页；顶栏回显邮箱并编辑昵称 |
-| [`ThoughtComposer`](src/components/thoughts/thought-composer.tsx#ThoughtComposer) | 内容输入 | 初始记录与继续写复用同一组件和容器视觉；`data-mode`只切换文案、标签与内部排版 |
+| [`ThoughtComposer`](src/components/thoughts/thought-composer.tsx#ThoughtComposer) | 内容输入 | Enter换行，⌘/Ctrl+Enter或显式按钮保存；输入随内容增长，AI运行只暂停提交，草稿继续可写 |
 | `thought_outbox`、[`useCaptureOutbox`](src/hooks/use-capture-outbox.ts#useCaptureOutbox) | 本机保存 | 按`userId`隔离草稿和待同步内容；同一想法按创建顺序发送，旧版无归属记录需由当前用户确认后恢复 |
-| `x-retniw-expected-user-id`、`expectedUserId`、[`requireRequestUser`](src/lib/auth/require-user.ts#requireRequestUser) | 页面账号围栏 | 客户端读取和写入通过请求头携带页面账号；导出先用请求头预检，再通过同源查询参数保持浏览器原生流式下载。Cookie已切换时返回`AUTH_CONTEXT_CHANGED`，全局提示刷新，不读取或修改另一账号数据 |
+| `x-retniw-expected-user-id`、`expectedUserId`、[`requireRequestUser`](src/lib/auth/require-user.ts#requireRequestUser) | 页面账号围栏 | 客户端读取和写入携带页面账号；云端导出先预检，再通过同源查询参数下载。当前快照导出校验页面owner，网络不可用时仅下载已加载的当前账号内容；明确认证失败或账号变化时阻断 |
 | [`ThoughtListItem`](src/components/thoughts/thought-list-item.tsx#ThoughtListItem)、[`ThoughtActionMenu`](src/components/thoughts/thought-action-menu.tsx#ThoughtActionMenu) | 内容管理 | 删除经强确认后调用 HTTP DELETE，不提供恢复 |
 | `app/review`、`ReviewWorkspace` | 跨想法回看 | 承接主动串联、开启说明、联系候选和已保留联系，不提供聊天输入 |
 | `POST /api/review/scan`、`ReviewService.scanExistingThoughts` | 主动串联 | 扫描最多20条既有想法，候选复用唯一关系真相源 |
@@ -56,6 +57,15 @@ flowchart TD
 ## 实现设计
 
 ### 前端
+
+#### 写作、找回与内容带走
+
+- `src/index.css`统一页面、输入、悬停与分隔线令牌，正文最大720像素。入口使用系统衬线标题，正文和控件保持系统无衬线；减弱卡片阴影，当前用户原文的可读性优先。移动端保留抽屉，减少动态效果设置继续生效。
+- 本机草稿仍以账号下的outbox为唯一来源。`LocalDrafts`在首页展示可恢复内容；恢复前等待当前输入落盘，异步初始化不能覆盖用户已经开始的输入。页面工作区key包含账号，账号刷新后重新建立状态。
+- 搜索通过`entries_thought_owner_fk!inner`连接想法，双侧按user_id过滤，排除deleted_at及AI条目。用转义后的`imatch`实现字面连续子串、忽略大小写，避免PostgREST把星号当通配符。每次取20+1条，游标绑定关键词及created_at/id；响应只包含有限命中片段，不将全量原文发送给客户端。无需数据库迁移。
+- `ThoughtSearch`使用250毫秒防抖、AbortController和请求序号，清空或切换查询后旧结果不能覆盖新状态；桌面和移动导航复用同一组件。
+- 当前想法在线导出复用服务端分页读取的完整Markdown流，读取完成后附加当前账号本机内容；同时保留点击时与读取后仍在本机的段落，防止同步过程中移除导致漏字。附录保留稳定ID，说明刚同步的同ID内容可能也出现在云端正文中。断流不作为完整导出，离线快照按entryId合并页面原文、本机段落与停靠点，并在文件名和内容中标记范围。流式AI未落库部分不作为已保存内容。全部云端JSON保持服务端原生下载，本机JSON独立导出。
+- `verifyExportOwner`在网络可用时核验服务端账号；明确401/403/409不能降级。断网或网络超时仅允许当前页面owner一致的本机快照，并标明offline；不读取其他账号或其他设备内容。
 
 #### 账号创建与身份回显
 

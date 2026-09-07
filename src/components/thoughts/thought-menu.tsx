@@ -1,7 +1,7 @@
 'use client'
 
 import { useLayoutEffect, useRef } from 'react'
-import { ExportMenu } from './export-menu'
+import { ExportMenu, type WorkspaceExportProps } from './export-menu'
 import { useDismissibleLayer, useOverlayController } from '@/src/components/overlay-provider'
 
 type ThoughtMenuProps = {
@@ -12,6 +12,7 @@ type ThoughtMenuProps = {
   importDisabled: boolean
   onImport: () => void
   onOrganize: () => void
+  exportSnapshot: WorkspaceExportProps
 }
 
 export function nextMenuItemIndex(key: string, currentIndex: number, itemCount: number) {
@@ -31,6 +32,7 @@ export function ThoughtMenu({
   importDisabled,
   onImport,
   onOrganize,
+  exportSnapshot,
 }: ThoughtMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -153,7 +155,7 @@ export function ThoughtMenu({
         >
           导入文字
         </button>
-        <ExportMenu thoughtId={thoughtId} userId={userId} />
+        <ExportMenu thoughtId={thoughtId} userId={userId} {...exportSnapshot} />
       </div>}
     </div>
   )

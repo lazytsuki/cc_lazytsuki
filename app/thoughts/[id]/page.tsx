@@ -46,7 +46,7 @@ export default async function ThoughtPage({ params }: ThoughtPageProps) {
     <main className="app-shell" id="main-content" tabIndex={-1} data-retniw-user-id={user.id}>
       <AppHeader account={{ email: user.email, nickname: user.nickname }} userId={user.id} />
       <ThoughtWorkspace
-        key={data.thought.id}
+        key={`${user.id}:${data.thought.id}`}
         userId={user.id}
         initialThought={data.thought}
         initialEntries={data.entries}
